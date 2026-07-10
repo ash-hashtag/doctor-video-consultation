@@ -308,51 +308,7 @@ export const useWebRTC = (roomId: string, role: 'doctor' | 'patient', onCallEnde
     };
   }, [localStream, roomId, role, cleanupCall]);
 
-  // Handle Send Chat Message
-  const sendMessage = useCallback((text: string) => {
-    if (!text.trim() || !socketRef.current) return;
-    
-    const timestamp = new Date();
-    socketRef.current.emit('chat-message-send', {
-      roomId,
-      text,
-      timestamp: timestamp.toISOString(),
-    });
 
-    setMessages((prev) => [
-      ...prev,
-      {
-        sender: 'self',
-        text,
-        timestamp,
-      },
-    ]);
-  }, [roomId]);
-
-  // Extra socket listeners for custom messaging (room chat support)
-  useEffect(() => {
-    if (!socketRef.current) return;
-    
-    const socket = socketRef.current;
-    
-    // Custom chat event backend should broadcast
-    socket.on('receive-chat-message', (data: { text: string; sender: string; timestamp: string }) => {
-      if (data.sender !== socket.id) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            sender: 'peer',
-            text: data.text,
-            timestamp: new Date(data.timestamp),
-          },
-        ]);
-      }
-    });
-
-    return () => {
-      socket.off('receive-chat-message');
-    };
-  }, [isJoined]);
 
   // Toggle Mute Audio locally
   const toggleMute = useCallback(() => {

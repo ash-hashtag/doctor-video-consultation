@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Video, ShieldAlert } from 'lucide-react';
+import { Video, ShieldAlert } from 'lucide-react';
 
 interface LobbyProps {
   onJoinRoom: (roomId: string, role: 'doctor' | 'patient', name: string) => void;
