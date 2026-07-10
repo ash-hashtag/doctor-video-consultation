@@ -139,6 +139,19 @@ export const setupSignaling = (io: Server) => {
       });
     });
 
+    // Handle Chat Messages
+    socket.on('chat-message', (payload: { roomId: string; text: string; timestamp: string }) => {
+      const { roomId, text, timestamp } = payload;
+      if (!roomId || !text) return;
+      
+      console.log(`Forwarding chat message from ${socket.id} to room ${roomId}`);
+      socket.to(roomId).emit('chat-message', {
+        text,
+        senderRole: currentRole,
+        timestamp,
+      });
+    });
+
     // End call / leave room explicitly
     socket.on('leave-room', async (payload: { roomId: string }) => {
       const { roomId } = payload;
