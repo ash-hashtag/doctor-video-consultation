@@ -16,7 +16,12 @@ interface Message {
   timestamp: Date;
 }
 
-export const useWebRTC = (roomId: string, role: 'doctor' | 'patient', onCallEnded?: () => void) => {
+export const useWebRTC = (
+  roomId: string,
+  role: 'doctor' | 'patient',
+  name: string,
+  onCallEnded?: () => void
+) => {
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const [isJoined, setIsJoined] = useState(false);
@@ -27,6 +32,10 @@ export const useWebRTC = (roomId: string, role: 'doctor' | 'patient', onCallEnde
   const [isPeerCameraOff, setIsPeerCameraOff] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+
+  // Track actual participant names dynamically
+  const [doctorName, setDoctorName] = useState<string | null>(null);
+  const [patientName, setPatientName] = useState<string | null>(null);
 
   const socketRef = useRef<Socket | null>(null);
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
@@ -67,15 +76,24 @@ export const useWebRTC = (roomId: string, role: 'doctor' | 'patient', onCallEnde
 
     socket.on('connect', () => {
       console.log('Connected to signaling server');
-      // If we have local stream, let's join. Otherwise, it will join via another effect once localStream is ready.
     });
 
     socket.on('connect_error', () => {
       setError('Failed to connect to video server. Reconnecting...');
     });
 
+    // Handle duplicate join errors or DB issues
+    socket.on('error-msg', (msg: string) => {
+      console.error('Signaling server error:', msg);
+      setError(msg);
+      // Exit and return to lobby on error
+      setTimeout(() => {
+        cleanupCall();
+        if (onCallEnded) onCallEnded();
+      }, 3000);
+    });
+
     return () => {
-      // Cleanup on unmount
       cleanupCall();
     };
   }, []);
@@ -106,6 +124,8 @@ export const useWebRTC = (roomId: string, role: 'doctor' | 'patient', onCallEnde
 
     setIsJoined(false);
     setIsPeerJoined(false);
+    setDoctorName(null);
+    setPatientName(null);
   }, [roomId]);
 
   // Join Room once socket and local stream are both ready
@@ -114,8 +134,8 @@ export const useWebRTC = (roomId: string, role: 'doctor' | 'patient', onCallEnde
 
     const socket = socketRef.current;
 
-    // Join signaling room
-    socket.emit('join-room', { roomId, role });
+    // Join signaling room with our role and name
+    socket.emit('join-room', { roomId, role, name });
     setIsJoined(true);
 
     // Create RTCPeerConnection and bind event handlers
@@ -138,7 +158,6 @@ export const useWebRTC = (roomId: string, role: 'doctor' | 'patient', onCallEnde
           remoteStreamRef.current = event.streams[0];
           setRemoteStream(event.streams[0]);
         } else {
-          // Fallback if no streams array provided
           if (!remoteStreamRef.current) {
             remoteStreamRef.current = new MediaStream();
             setRemoteStream(remoteStreamRef.current);
@@ -172,17 +191,16 @@ export const useWebRTC = (roomId: string, role: 'doctor' | 'patient', onCallEnde
     };
 
     // Signaling Listener: Peer Joined
-    socket.on('peer-joined', async (data: { socketId: string; role: string }) => {
-      console.log(`Peer joined: ${data.socketId} as ${data.role}`);
+    socket.on('peer-joined', async (data: { socketId: string; role: 'doctor' | 'patient'; name: string }) => {
+      console.log(`Peer joined: ${data.socketId} as ${data.role} (${data.name})`);
       setIsPeerJoined(true);
       
-      // The joining sequence:
-      // The room status will manage who initiates the offer.
-      // Usually, to avoid collision, one of the roles initiates. Let's make the Patient always initiate the offer.
-      // If we are patient and doctor has joined, OR if we are doctor and patient joined.
-      // Let's have the Doctor initiate the WebRTC offer when the Patient is present.
-      // Or simply: whoever is currently in the room will initiate when the new peer arrives.
-      // Let's implement: Patient always initiates the offer to create a predictable flow.
+      if (data.role === 'doctor') {
+        setDoctorName(data.name);
+      } else {
+        setPatientName(data.name);
+      }
+
       if (role === 'patient') {
         try {
           const pc = createPeerConnection();
@@ -196,10 +214,13 @@ export const useWebRTC = (roomId: string, role: 'doctor' | 'patient', onCallEnde
       }
     });
 
-    // Signaling Listener: Room status details
-    socket.on('room-status', (data: { doctorJoined: boolean; patientJoined: boolean }) => {
+    // Signaling Listener: Room status details containing names
+    socket.on('room-status', (data: { doctorJoined: boolean; patientJoined: boolean; doctorName?: string; patientName?: string }) => {
       const isOtherJoined = role === 'doctor' ? data.patientJoined : data.doctorJoined;
       setIsPeerJoined(isOtherJoined);
+
+      if (data.doctorName) setDoctorName(data.doctorName);
+      if (data.patientName) setPatientName(data.patientName);
 
       // If the other peer is already in the room when we join, patient will initiate the offer.
       if (isOtherJoined && role === 'patient') {
@@ -213,7 +234,7 @@ export const useWebRTC = (roomId: string, role: 'doctor' | 'patient', onCallEnde
           } catch (err) {
             console.error('Failed to create delayed offer:', err);
           }
-        }, 1000); // Small timeout to ensure both are ready
+        }, 1000);
       }
     });
 
@@ -280,7 +301,7 @@ export const useWebRTC = (roomId: string, role: 'doctor' | 'patient', onCallEnde
     });
 
     // Signaling Listener: Peer Left
-    socket.on('peer-left', () => {
+    socket.on('peer-left', (data: { role: string }) => {
       console.log('Peer left room');
       setIsPeerJoined(false);
       setRemoteStream(null);
@@ -288,7 +309,12 @@ export const useWebRTC = (roomId: string, role: 'doctor' | 'patient', onCallEnde
       setIsPeerMuted(false);
       setIsPeerCameraOff(false);
       
-      // Re-create a fresh peer connection for future reconnects
+      if (data.role === 'doctor') {
+        setDoctorName(null);
+      } else {
+        setPatientName(null);
+      }
+      
       if (peerConnectionRef.current) {
         peerConnectionRef.current.close();
         peerConnectionRef.current = null;
@@ -306,9 +332,7 @@ export const useWebRTC = (roomId: string, role: 'doctor' | 'patient', onCallEnde
       socket.off('chat-message');
       socket.off('peer-left');
     };
-  }, [localStream, roomId, role, cleanupCall]);
-
-
+  }, [localStream, roomId, role, name, cleanupCall]);
 
   // Toggle Mute Audio locally
   const toggleMute = useCallback(() => {
@@ -350,7 +374,7 @@ export const useWebRTC = (roomId: string, role: 'doctor' | 'patient', onCallEnde
     }
   }, [cleanupCall, onCallEnded]);
 
-  // Custom function to send chat message through sockets
+  // Send chat message through sockets
   const sendChatMessage = useCallback((text: string) => {
     if (!socketRef.current || !text.trim()) return;
     const msg = {
@@ -384,5 +408,7 @@ export const useWebRTC = (roomId: string, role: 'doctor' | 'patient', onCallEnde
     toggleMute,
     toggleCamera,
     endCall,
+    doctorName,
+    patientName,
   };
 };

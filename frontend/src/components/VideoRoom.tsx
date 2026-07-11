@@ -24,7 +24,9 @@ export const VideoRoom: React.FC<VideoRoomProps> = ({ roomId, role, name, onLeav
     toggleMute,
     toggleCamera,
     endCall,
-  } = useWebRTC(roomId, role, onLeaveRoom);
+    doctorName,
+    patientName,
+  } = useWebRTC(roomId, role, name, onLeaveRoom);
 
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -57,8 +59,8 @@ export const VideoRoom: React.FC<VideoRoomProps> = ({ roomId, role, name, onLeav
     setChatInput('');
   };
 
-  // Human readable label for the peer role
-  const peerRoleLabel = role === 'doctor' ? 'Patient' : 'Doctor';
+  // Determine peer name and own role details
+  const peerName = role === 'doctor' ? (patientName || 'Patient') : (doctorName || 'Doctor');
   const myRoleLabel = role === 'doctor' ? 'Doctor' : 'Patient';
 
   return (
@@ -110,15 +112,15 @@ export const VideoRoom: React.FC<VideoRoomProps> = ({ roomId, role, name, onLeav
               {isPeerCameraOff && (
                 <div className="avatar-placeholder">
                   <div className="avatar-circle">
-                    {peerRoleLabel.charAt(0)}
+                    {peerName.charAt(0).toUpperCase()}
                   </div>
-                  <div className="placeholder-text">{peerRoleLabel} - Video Off</div>
+                  <div className="placeholder-text">{peerName} - Video Off</div>
                 </div>
               )}
 
               <div className="video-overlay-info">
                 <div className="indicator-dot active" />
-                <span>{peerRoleLabel}</span>
+                <span>{peerName}</span>
                 {isPeerMuted && <span style={{ color: 'var(--danger)', fontSize: '0.75rem', fontWeight: 600 }}>[MUTED]</span>}
               </div>
             </div>
@@ -178,7 +180,7 @@ export const VideoRoom: React.FC<VideoRoomProps> = ({ roomId, role, name, onLeav
                 className={`chat-message-bubble ${msg.sender === 'self' ? 'self' : 'peer'}`}
               >
                 <div className="message-meta">
-                  <span>{msg.sender === 'self' ? 'You' : peerRoleLabel}</span>
+                  <span>{msg.sender === 'self' ? 'You' : peerName}</span>
                   <span>
                     {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </span>

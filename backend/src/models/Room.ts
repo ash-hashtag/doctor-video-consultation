@@ -5,6 +5,10 @@ export interface IRoom extends Document {
   status: 'active' | 'ended';
   doctorJoined: boolean;
   patientJoined: boolean;
+  doctorSocketId?: string;
+  patientSocketId?: string;
+  doctorName?: string;
+  patientName?: string;
   createdAt: Date;
   endedAt?: Date;
 }
@@ -15,6 +19,10 @@ const RoomSchema: Schema = new Schema(
     status: { type: String, enum: ['active', 'ended'], default: 'active' },
     doctorJoined: { type: Boolean, default: false },
     patientJoined: { type: Boolean, default: false },
+    doctorSocketId: { type: String },
+    patientSocketId: { type: String },
+    doctorName: { type: String },
+    patientName: { type: String },
     endedAt: { type: Date },
   },
   { timestamps: true }

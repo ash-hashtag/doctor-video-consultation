@@ -3,11 +3,13 @@ import { Video, ShieldAlert } from 'lucide-react';
 
 interface LobbyProps {
   onJoinRoom: (roomId: string, role: 'doctor' | 'patient', name: string) => void;
+  initialRoomId?: string;
 }
 
-export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom }) => {
+export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, initialRoomId }) => {
   const [name, setName] = useState('');
   const [roomId, setRoomId] = useState(() => {
+    if (initialRoomId) return initialRoomId;
     // Generate a default random clean code for testing convenience
     const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
     let code = '';

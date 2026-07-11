@@ -4,6 +4,7 @@ import Room from '../models/Room';
 interface JoinPayload {
   roomId: string;
   role: 'doctor' | 'patient';
+  name: string;
 }
 
 interface SignalPayload {
@@ -27,18 +28,14 @@ export const setupSignaling = (io: Server) => {
 
     // Join room
     socket.on('join-room', async (payload: JoinPayload) => {
-      const { roomId, role } = payload;
+      const { roomId, role, name } = payload;
       
-      if (!roomId || !['doctor', 'patient'].includes(role)) {
-        socket.emit('error-msg', 'Invalid room ID or role');
+      if (!roomId || !['doctor', 'patient'].includes(role) || !name) {
+        socket.emit('error-msg', 'Invalid room ID, role, or name');
         return;
       }
 
-      console.log(`Socket ${socket.id} joining room ${roomId} as ${role}`);
-      
-      currentRoomId = roomId;
-      currentRole = role;
-      socket.join(roomId);
+      console.log(`Socket ${socket.id} joining room ${roomId} as ${role} (Name: ${name})`);
 
       try {
         // Find or create the room in DB
@@ -50,19 +47,46 @@ export const setupSignaling = (io: Server) => {
           room.endedAt = undefined;
         }
 
-        // Update role join status
+        // Check if role is already filled by an active socket
         if (role === 'doctor') {
+          if (room.doctorJoined && room.doctorSocketId && room.doctorSocketId !== socket.id) {
+            const isOldSocketConnected = io.sockets.sockets.has(room.doctorSocketId);
+            if (isOldSocketConnected) {
+              socket.emit('error-msg', 'A Doctor has already joined this consultation room.');
+              return;
+            }
+          }
+          // Allocate room slot
           room.doctorJoined = true;
+          room.doctorSocketId = socket.id;
+          room.doctorName = name;
         } else {
+          if (room.patientJoined && room.patientSocketId && room.patientSocketId !== socket.id) {
+            const isOldSocketConnected = io.sockets.sockets.has(room.patientSocketId);
+            if (isOldSocketConnected) {
+              socket.emit('error-msg', 'A Patient has already joined this consultation room.');
+              return;
+            }
+          }
+          // Allocate room slot
           room.patientJoined = true;
+          room.patientSocketId = socket.id;
+          room.patientName = name;
         }
+
+        currentRoomId = roomId;
+        currentRole = role;
+        socket.join(roomId);
+
         await room.save();
 
-        // Notify everyone in the room about the updated status
+        // Notify everyone in the room about the updated status and participant names
         io.to(roomId).emit('room-status', {
           roomId,
           doctorJoined: room.doctorJoined,
           patientJoined: room.patientJoined,
+          doctorName: room.doctorName,
+          patientName: room.patientName,
           status: room.status,
         });
 
@@ -70,9 +94,10 @@ export const setupSignaling = (io: Server) => {
         socket.to(roomId).emit('peer-joined', {
           socketId: socket.id,
           role: role,
+          name: name,
         });
 
-        console.log(`Room status updated for ${roomId}: Doctor=${room.doctorJoined}, Patient=${room.patientJoined}`);
+        console.log(`Room status updated: Doctor=${room.doctorName} (${room.doctorJoined}), Patient=${room.patientName} (${room.patientJoined})`);
       } catch (err) {
         console.error('Error on join-room:', err);
         socket.emit('error-msg', 'Database error during room join');
@@ -176,15 +201,18 @@ export const setupSignaling = (io: Server) => {
         const room = await Room.findOne({ roomId });
         if (!room) return;
 
-        // Reset the corresponding flag
-        if (currentRole === 'doctor') {
+        // Reset flags only if the disconnecting socket is the one registered
+        if (currentRole === 'doctor' && room.doctorSocketId === clientSocket.id) {
           room.doctorJoined = false;
-        } else if (currentRole === 'patient') {
+          room.doctorSocketId = undefined;
+          room.doctorName = undefined;
+        } else if (currentRole === 'patient' && room.patientSocketId === clientSocket.id) {
           room.patientJoined = false;
+          room.patientSocketId = undefined;
+          room.patientName = undefined;
         }
 
-        // If both left, we can set the room status to ended (or keep active depending on logic)
-        // Let's set status to 'ended' and set endedAt if both participants are gone
+        // If both left, set status to ended
         if (!room.doctorJoined && !room.patientJoined) {
           room.status = 'ended';
           room.endedAt = new Date();
@@ -203,6 +231,8 @@ export const setupSignaling = (io: Server) => {
           roomId,
           doctorJoined: room.doctorJoined,
           patientJoined: room.patientJoined,
+          doctorName: room.doctorName,
+          patientName: room.patientName,
           status: room.status,
         });
 
