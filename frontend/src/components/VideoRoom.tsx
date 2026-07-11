@@ -36,14 +36,14 @@ export const VideoRoom: React.FC<VideoRoomProps> = ({ roomId, role, name, onLeav
     if (localVideoRef.current && localStream) {
       localVideoRef.current.srcObject = localStream;
     }
-  }, [localStream]);
+  }, [localStream, isCameraOff]);
 
   // Bind remote stream to video element
   useEffect(() => {
     if (remoteVideoRef.current && remoteStream) {
       remoteVideoRef.current.srcObject = remoteStream;
     }
-  }, [remoteStream]);
+  }, [remoteStream, isPeerCameraOff, isPeerJoined]);
 
   // Auto-scroll chat to bottom
   useEffect(() => {
@@ -75,21 +75,20 @@ export const VideoRoom: React.FC<VideoRoomProps> = ({ roomId, role, name, onLeav
         <div className={`video-grid ${isPeerJoined ? 'dual' : 'single'}`}>
           {/* Local Video Card */}
           <div className="video-card">
-            {isCameraOff ? (
+            <video
+              ref={localVideoRef}
+              autoPlay
+              playsInline
+              muted
+              className={`video-feed ${isCameraOff ? 'hidden' : ''}`}
+            />
+            {isCameraOff && (
               <div className="avatar-placeholder">
                 <div className="avatar-circle">
                   {name.charAt(0).toUpperCase()}
                 </div>
                 <div className="placeholder-text">{name} (You) - Video Off</div>
               </div>
-            ) : (
-              <video
-                ref={localVideoRef}
-                autoPlay
-                playsInline
-                muted
-                className="video-feed"
-              />
             )}
             
             <div className="video-overlay-info">
@@ -102,20 +101,19 @@ export const VideoRoom: React.FC<VideoRoomProps> = ({ roomId, role, name, onLeav
           {/* Remote Video Card */}
           {isPeerJoined && (
             <div className="video-card">
-              {isPeerCameraOff ? (
+              <video
+                ref={remoteVideoRef}
+                autoPlay
+                playsInline
+                className={`video-feed ${isPeerCameraOff ? 'hidden' : ''}`}
+              />
+              {isPeerCameraOff && (
                 <div className="avatar-placeholder">
                   <div className="avatar-circle">
                     {peerRoleLabel.charAt(0)}
                   </div>
                   <div className="placeholder-text">{peerRoleLabel} - Video Off</div>
                 </div>
-              ) : (
-                <video
-                  ref={remoteVideoRef}
-                  autoPlay
-                  playsInline
-                  className="video-feed"
-                />
               )}
 
               <div className="video-overlay-info">
