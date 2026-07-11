@@ -5,12 +5,25 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Sehaat Saathi - Teleconsultation</title>
+    <style>
+      /* Hide the main React layout completely until index.css stylesheet is loaded */
+      .app-container {
+        visibility: hidden !important;
+        height: 0 !important;
+        overflow: hidden !important;
+        opacity: 0 !important;
+      }
+      #initial-loading {
+        display: flex !important;
+      }
+    </style>
   </head>
   <body style="background-color: #0b0f19; color: #f3f4f6; margin: 0; min-height: 100vh; display: flex; flex-direction: column;">
     <div id="root" style="display: flex; flex: 1; flex-direction: column;">
-      <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; font-family: -apple-system, BlinkMacSystemFont, sans-serif; gap: 0.75rem;">
-        <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#0284c7" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="animation: pulse-ecg 1.5s ease-in-out infinite;">
-          <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+      <div id="initial-loading" style="display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; font-family: -apple-system, BlinkMacSystemFont, sans-serif; gap: 0.75rem;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#0284c7" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation: pulse-ecg 1.5s ease-in-out infinite;">
+          <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
+          <path d="M3.22 12H7l2-5 3 10 2-7 1.5 4h3.28"/>
         </svg>
         <span style="font-size: 0.75rem; color: #4b5563; font-weight: 500; letter-spacing: 1px; text-transform: uppercase;">Connecting to Sehaat Saathi...</span>
         <style>
