@@ -116,7 +116,6 @@ function App() {
             <HeartPulse size={16} />
           </div>
           <span className="logo-text">Sehaat Saathi</span>
-          <span className="logo-badge">Teleconsult v1.1</span>
         </div>
 
         {session && (

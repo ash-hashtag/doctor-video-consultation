@@ -276,16 +276,28 @@ body {
 .consultation-container {
   flex: 1;
   display: grid;
-  grid-template-columns: 1fr 340px;
+  grid-template-columns: 1fr; /* Default without chat */
   height: calc(100vh - 60px);
   position: relative;
   overflow: hidden;
+  transition: var(--transition);
+}
+
+.consultation-container.with-chat {
+  grid-template-columns: 1fr 340px;
 }
 
 @media (max-width: 1024px) {
-  .consultation-container {
+  .consultation-container.with-chat {
     grid-template-columns: 1fr;
-    grid-template-rows: 1fr 280px;
+    grid-template-rows: 1fr 280px; /* Split stack on tablet */
+  }
+}
+
+@media (max-width: 768px) {
+  .consultation-container.with-chat {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr; /* Overlay on mobile */
   }
 }
 
@@ -318,9 +330,41 @@ body {
 }
 
 @media (max-width: 768px) {
+  /* Mobile PIP Overlays layout */
   .video-grid.dual {
-    grid-template-columns: 1fr;
-    grid-template-rows: 1fr 1fr;
+    display: block;
+    position: relative;
+    width: 100%;
+    height: calc(100% - 80px);
+  }
+  
+  /* Remote Video takes 100% space */
+  .video-grid.dual .video-card:nth-child(2) {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1;
+  }
+  
+  /* Local Video PIP in bottom right */
+  .video-grid.dual .video-card:nth-child(1) {
+    width: 110px;
+    height: 165px;
+    position: absolute;
+    bottom: 15px; /* Floats inside feed */
+    right: 15px;
+    z-index: 5;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+  }
+
+  .video-grid.dual .video-card:nth-child(1) .video-overlay-info {
+    font-size: 0.65rem;
+    padding: 2px 4px;
+    bottom: 5px;
+    left: 5px;
   }
 }
 
@@ -333,7 +377,6 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  aspect-ratio: 16/9;
   width: 100%;
   height: 100%;
 }
@@ -364,6 +407,7 @@ body {
   gap: 0.4rem;
   font-weight: 500;
   font-size: 0.8rem;
+  z-index: 10;
 }
 
 .indicator-dot {
@@ -394,7 +438,7 @@ body {
 .avatar-circle {
   width: 64px;
   height: 64px;
-  border-radius: var(--border-radius-md); /* Less rounded / Boxy */
+  border-radius: var(--border-radius-md);
   background-color: var(--bg-card);
   border: 1px solid var(--panel-border);
   display: flex;
@@ -421,13 +465,13 @@ body {
   display: flex;
   align-items: center;
   gap: 1rem;
-  z-index: 10;
+  z-index: 20; /* Keep on top of mobile PIP */
 }
 
 .control-btn {
   width: 40px;
   height: 40px;
-  border-radius: var(--border-radius-md); /* Boxy */
+  border-radius: var(--border-radius-md);
   border: 1px solid var(--panel-border);
   background-color: var(--bg-color);
   color: var(--text-main);
@@ -472,6 +516,12 @@ body {
   display: flex;
   flex-direction: column;
   height: 100%;
+  transition: transform 0.2s ease-in-out;
+}
+
+/* Hide sidebar on desktop when toggled off */
+.consultation-container:not(.with-chat) .consultation-sidebar {
+  display: none;
 }
 
 .sidebar-header {
@@ -607,4 +657,32 @@ body {
   display: flex;
   align-items: center;
   gap: 0.4rem;
+}
+
+@media (max-width: 768px) {
+  /* Slide sidebar as absolute overlay on mobile */
+  .consultation-sidebar {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 50;
+    display: flex !important;
+    transform: translateX(0);
+    border-left: none;
+  }
+  
+  .consultation-container:not(.with-chat) .consultation-sidebar {
+    transform: translateX(100%);
+  }
+
+  /* Header adjustments for small screen spacing */
+  .header {
+    padding: 0 1rem;
+  }
+
+  .logo-text {
+    font-size: 1.1rem;
+  }
 }

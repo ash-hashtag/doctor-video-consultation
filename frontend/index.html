@@ -6,8 +6,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Sehaat Saathi - Teleconsultation</title>
   </head>
-  <body style="background-color: #0b0f19; color: #f3f4f6; margin: 0; min-height: 100vh;">
-    <div id="root"></div>
+  <body style="background-color: #0b0f19; color: #f3f4f6; margin: 0; min-height: 100vh; display: flex; flex-direction: column;">
+    <div id="root" style="display: flex; flex: 1; flex-direction: column;">
+      <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; font-family: -apple-system, BlinkMacSystemFont, sans-serif; gap: 0.75rem;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#0284c7" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="animation: pulse-ecg 1.5s ease-in-out infinite;">
+          <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+        </svg>
+        <span style="font-size: 0.75rem; color: #4b5563; font-weight: 500; letter-spacing: 1px; text-transform: uppercase;">Connecting to Sehaat Saathi...</span>
+        <style>
+          @keyframes pulse-ecg {
+            0%, 100% { opacity: 0.3; transform: scale(0.95); }
+            50% { opacity: 1; transform: scale(1.05); }
+          }
+        </style>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

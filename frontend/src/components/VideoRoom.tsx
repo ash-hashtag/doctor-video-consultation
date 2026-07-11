@@ -31,6 +31,9 @@ export const VideoRoom: React.FC<VideoRoomProps> = ({ roomId, role, name, onLeav
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
+  
+  // Track chat open/close state (close by default on mobile)
+  const [showChat, setShowChat] = useState(() => window.innerWidth > 768);
   const [chatInput, setChatInput] = useState('');
 
   // Bind local stream to video element
@@ -59,12 +62,11 @@ export const VideoRoom: React.FC<VideoRoomProps> = ({ roomId, role, name, onLeav
     setChatInput('');
   };
 
-  // Determine peer name and own role details
+  // Determine peer name exactly as entered
   const peerName = role === 'doctor' ? (patientName || 'Patient') : (doctorName || 'Doctor');
-  const myRoleLabel = role === 'doctor' ? 'Doctor' : 'Patient';
 
   return (
-    <div className="consultation-container">
+    <div className={`consultation-container ${showChat ? 'with-chat' : ''}`}>
       {/* Video Workspace */}
       <div className="video-workspace">
         {error && (
@@ -95,7 +97,7 @@ export const VideoRoom: React.FC<VideoRoomProps> = ({ roomId, role, name, onLeav
             
             <div className="video-overlay-info">
               <div className="indicator-dot active" />
-              <span>{name} ({myRoleLabel})</span>
+              <span>{name} (You)</span>
               {isMuted && <span style={{ color: 'var(--danger)', fontSize: '0.75rem', fontWeight: 600 }}>[MUTED]</span>}
             </div>
           </div>
@@ -134,7 +136,7 @@ export const VideoRoom: React.FC<VideoRoomProps> = ({ roomId, role, name, onLeav
             className={`control-btn ${isMuted ? 'muted' : ''}`}
             title={isMuted ? 'Unmute Microphone' : 'Mute Microphone'}
           >
-            {isMuted ? <MicOff size={22} /> : <Mic size={22} />}
+            {isMuted ? <MicOff size={20} /> : <Mic size={20} />}
           </button>
 
           <button
@@ -142,7 +144,15 @@ export const VideoRoom: React.FC<VideoRoomProps> = ({ roomId, role, name, onLeav
             className={`control-btn ${isCameraOff ? 'muted' : ''}`}
             title={isCameraOff ? 'Turn Camera On' : 'Turn Camera Off'}
           >
-            {isCameraOff ? <VideoOff size={22} /> : <Video size={22} />}
+            {isCameraOff ? <VideoOff size={20} /> : <Video size={20} />}
+          </button>
+
+          <button
+            onClick={() => setShowChat(!showChat)}
+            className={`control-btn ${showChat ? 'active' : ''}`}
+            title="Toggle Consultation Chat"
+          >
+            <MessageSquare size={20} />
           </button>
 
           <button
@@ -150,7 +160,7 @@ export const VideoRoom: React.FC<VideoRoomProps> = ({ roomId, role, name, onLeav
             className="control-btn danger"
             title="Leave / End Consultation"
           >
-            <PhoneOff size={22} />
+            <PhoneOff size={20} />
           </button>
         </div>
       </div>
@@ -158,20 +168,26 @@ export const VideoRoom: React.FC<VideoRoomProps> = ({ roomId, role, name, onLeav
       {/* Right Sidebar - Chat & Notes */}
       <div className="consultation-sidebar">
         <div className="sidebar-header">
-          <h3 className="sidebar-title">
-            <MessageSquare size={18} style={{ color: 'var(--accent)' }} />
-            <span>Consultation Chat</span>
-          </h3>
-          <span className="chat-badge">{messages.length}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <MessageSquare size={16} style={{ color: 'var(--primary)' }} />
+            <span className="sidebar-title" style={{ fontSize: '0.85rem', fontWeight: 600 }}>Consultation Chat</span>
+            <span className="chat-badge" style={{ fontSize: '0.65rem' }}>{messages.length}</span>
+          </div>
+          <button 
+            onClick={() => setShowChat(false)}
+            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1rem', display: 'flex', padding: '4px' }}
+            title="Close Chat"
+          >
+            ✕
+          </button>
         </div>
 
         {/* Chat History */}
         <div className="chat-history">
           {messages.length === 0 ? (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)', fontSize: '0.8rem', textAlign: 'center' }}>
               <p>No messages yet.</p>
-              <p>Type a message to share prescriptions,</p>
-              <p>questions, or symptoms.</p>
+              <p style={{ marginTop: '0.25rem', fontSize: '0.75rem', color: 'var(--text-dark)' }}>Type a message below to share notes or symptoms.</p>
             </div>
           ) : (
             messages.map((msg, index) => (
@@ -197,12 +213,12 @@ export const VideoRoom: React.FC<VideoRoomProps> = ({ roomId, role, name, onLeav
           <input
             type="text"
             className="chat-input"
-            placeholder="Type message or share note..."
+            placeholder="Type message..."
             value={chatInput}
             onChange={(e) => setChatInput(e.target.value)}
           />
           <button type="submit" className="chat-send-btn">
-            <Send size={16} />
+            <Send size={14} />
           </button>
         </form>
       </div>
