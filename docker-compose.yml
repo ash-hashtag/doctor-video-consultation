@@ -18,6 +18,8 @@ services:
     container_name: sehaat_saathi_backend
     ports:
       - "5000:5000"
+    env_file:
+      - ./backend/.env
     environment:
       - NODE_ENV=development
       - PORT=5000

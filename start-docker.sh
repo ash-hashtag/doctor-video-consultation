@@ -26,6 +26,12 @@ docker run -d \
 echo "📦 Building backend Docker image..."
 docker build -t sehaat-saathi-backend ./backend
 
+# Load environment variables from backend/.env if file exists
+if [ -f ./backend/.env ]; then
+  echo "🔑 Loading environment variables from backend/.env..."
+  export $(grep -v '^#' ./backend/.env | xargs)
+fi
+
 echo "🚀 Starting backend container..."
 docker run -d \
   --name sehaat_saathi_backend \
@@ -34,6 +40,8 @@ docker run -d \
   -e PORT=5000 \
   -e MONGO_URI=mongodb://sehaat_saathi_db:27017/video-consultation \
   -e CORS_ORIGIN=http://localhost:5173 \
+  -e TURN_TOKEN_ID="$TURN_TOKEN_ID" \
+  -e TURN_API_TOKEN="$TURN_API_TOKEN" \
   sehaat-saathi-backend
 
 # 5. Build and run frontend service

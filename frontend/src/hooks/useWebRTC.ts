@@ -2,19 +2,43 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { BACKEND_URL } from '../config';
 
-const ICE_SERVERS: RTCConfiguration = {
-  iceServers: [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' },
-    { urls: 'stun:stun2.l.google.com:19302' },
-  ],
-};
-
 interface Message {
   sender: 'self' | 'peer';
   text: string;
   timestamp: Date;
 }
+
+// Module-level cache for WebRTC config promise to prevent fetching twice per page load
+let cachedConfigPromise: Promise<RTCConfiguration> | null = null;
+
+const getWebRTCConfig = (): Promise<RTCConfiguration> => {
+  if (!cachedConfigPromise) {
+    cachedConfigPromise = (async () => {
+      try {
+        console.log('Fetching WebRTC configuration from backend...');
+        const response = await fetch(`${BACKEND_URL}/api/webrtc-config`);
+        if (response.ok) {
+          const config = await response.json();
+          if (config && config.iceServers) {
+            console.log('Successfully loaded WebRTC configuration', config);
+            return config;
+          }
+        }
+        throw new Error('Invalid config format');
+      } catch (err) {
+        console.error('Error fetching WebRTC config, using defaults:', err);
+        return {
+          iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' },
+          ],
+        };
+      }
+    })();
+  }
+  return cachedConfigPromise;
+};
 
 export const useWebRTC = (
   roomId: string,
@@ -32,6 +56,7 @@ export const useWebRTC = (
   const [isPeerCameraOff, setIsPeerCameraOff] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [webrtcConfig, setWebrtcConfig] = useState<RTCConfiguration | null>(null);
 
   // Track actual participant names dynamically
   const [doctorName, setDoctorName] = useState<string | null>(null);
@@ -44,6 +69,19 @@ export const useWebRTC = (
 
   // Initialize Socket.io and Media Stream
   useEffect(() => {
+    let isMounted = true;
+    let localStreamInstance: MediaStream | null = null;
+
+    // Fetch WebRTC configuration from backend (utilizing page-level cache)
+    const fetchConfig = async () => {
+      const config = await getWebRTCConfig();
+      if (isMounted) {
+        setWebrtcConfig(config);
+      }
+    };
+
+    fetchConfig();
+
     // 1. Setup media devices (mic/camera)
     const initMedia = async () => {
       try {
@@ -56,11 +94,19 @@ export const useWebRTC = (
           audio: true,
         });
         
+        if (!isMounted) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+
+        localStreamInstance = stream;
         localStreamRef.current = stream;
         setLocalStream(stream);
       } catch (err) {
-        console.error('Error accessing media devices:', err);
-        setError('Could not access microphone/camera. Please check permissions.');
+        if (isMounted) {
+          console.error('Error accessing media devices:', err);
+          setError('Could not access microphone/camera. Please check permissions.');
+        }
       }
     };
 
@@ -75,26 +121,38 @@ export const useWebRTC = (
     socketRef.current = socket;
 
     socket.on('connect', () => {
-      console.log('Connected to signaling server');
+      if (isMounted) {
+        console.log('Connected to signaling server');
+      }
     });
 
     socket.on('connect_error', () => {
-      setError('Failed to connect to video server. Reconnecting...');
+      if (isMounted) {
+        setError('Failed to connect to video server. Reconnecting...');
+      }
     });
 
     // Handle duplicate join errors or DB issues
     socket.on('error-msg', (msg: string) => {
-      console.error('Signaling server error:', msg);
-      setError(msg);
-      // Exit and return to lobby on error
-      setTimeout(() => {
-        cleanupCall();
-        if (onCallEnded) onCallEnded();
-      }, 3000);
+      if (isMounted) {
+        console.error('Signaling server error:', msg);
+        setError(msg);
+        // Exit and return to lobby on error
+        setTimeout(() => {
+          if (isMounted) {
+            cleanupCall();
+            if (onCallEnded) onCallEnded();
+          }
+        }, 3000);
+      }
     });
 
     return () => {
+      isMounted = false;
       cleanupCall();
+      if (localStreamInstance) {
+        localStreamInstance.getTracks().forEach((track) => track.stop());
+      }
     };
   }, []);
 
@@ -128,9 +186,9 @@ export const useWebRTC = (
     setPatientName(null);
   }, [roomId]);
 
-  // Join Room once socket and local stream are both ready
+  // Join Room once socket, local stream, and webrtc configuration are all ready
   useEffect(() => {
-    if (!socketRef.current || !localStream) return;
+    if (!socketRef.current || !localStream || !webrtcConfig) return;
 
     const socket = socketRef.current;
 
@@ -143,7 +201,7 @@ export const useWebRTC = (
       if (peerConnectionRef.current) return peerConnectionRef.current;
 
       console.log('Creating RTCPeerConnection...');
-      const pc = new RTCPeerConnection(ICE_SERVERS);
+      const pc = new RTCPeerConnection(webrtcConfig);
       peerConnectionRef.current = pc;
 
       // Add local tracks to peer connection

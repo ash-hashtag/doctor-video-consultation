@@ -1,0 +1,12 @@
+{
+  "name": "video-consultation-suite",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "install:all": "pnpm -C frontend install && pnpm -C backend install",
+    "build:frontend": "pnpm -C frontend run build",
+    "build:backend": "pnpm -C backend run build",
+    "build": "pnpm run install:all && pnpm run build:frontend && pnpm run build:backend",
+    "serve": "pnpm -C backend start"
+  }
+}
