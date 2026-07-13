@@ -99,8 +99,8 @@ app.get('/api/rooms/:roomId', async (req, res) => {
 // 4. Get WebRTC configuration (including TURN servers)
 app.get('/api/webrtc-config', async (req, res) => {
   try {
-    const turnTokenId = process.env.TURN_TOKEN_ID;
-    const turnApiToken = process.env.TURN_API_TOKEN;
+    const turnTokenId = (process.env.TURN_TOKEN_ID || '').trim();
+    const turnApiToken = (process.env.TURN_API_TOKEN || '').trim();
 
     const defaultIceServers = [
       { urls: 'stun:stun.l.google.com:19302' },
@@ -108,8 +108,8 @@ app.get('/api/webrtc-config', async (req, res) => {
       { urls: 'stun:stun2.l.google.com:19302' },
     ];
 
-    if (!turnTokenId || !turnApiToken) {
-      console.log('TURN credentials not configured, returning default STUN servers.');
+    if (!turnTokenId || !turnApiToken || turnTokenId.startsWith('<') || turnApiToken.startsWith('<')) {
+      console.log('TURN credentials not configured or set to placeholder, returning default STUN servers.');
       return res.status(200).json({ iceServers: defaultIceServers });
     }
 
