@@ -2,14 +2,11 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Install pnpm
-RUN npm install -g pnpm
-
 # Copy package configurations
-COPY package.json pnpm-lock.yaml* ./
+COPY package.json package-lock.json* ./
 
 # Install dependencies
-RUN pnpm install
+RUN npm install
 
 # Copy source files
 COPY . .
@@ -18,4 +15,4 @@ COPY . .
 EXPOSE 5173
 
 # Start development server
-CMD ["pnpm", "run", "dev"]
+CMD ["npm", "run", "dev"]
